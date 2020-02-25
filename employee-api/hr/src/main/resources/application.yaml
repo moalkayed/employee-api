@@ -1,0 +1,19 @@
+web: 
+   allowHeaders: 
+    - Origin
+    - Content-Type
+    - Accept
+   allowMethods:
+   - POST
+   - GET
+   - OPTIONS
+   allowOrigin: '*'
+   cacheControl: max-age=600, public
+mongodb:
+   host: localhost
+   username: username
+   password: passwsord
+   port: 27017
+   databaseName: employee-api
+   timeout: 15
+   ssl: false
