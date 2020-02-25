@@ -57,7 +57,7 @@ public class EmployeeController extends ExceptionAdvisor {
 		return application.uploadResume(resume, id);
 	}
 
-	@RequestMapping(value = "/download/{id}", method = RequestMethod.POST)
+	@RequestMapping(value = "/resume/search/{id}", method = RequestMethod.POST)
 	public byte[] searchResume(@PathVariable(value = "id") Long id) throws GenericException {
 		return application.downloadResume(id);
 	}
