@@ -1,5 +1,7 @@
 package com.employee.api.application.employee;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -7,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.employee.api.application.AbstractApplication;
 import com.employee.api.controller.DeleteResponse;
@@ -14,11 +17,13 @@ import com.employee.api.controller.IdsRequest;
 import com.employee.api.controller.employee.EmployeeListDTO;
 import com.employee.api.controller.employee.EmployeeRequest;
 import com.employee.api.controller.employee.FilterRequest;
+import com.employee.api.controller.employee.ResumeResponse;
 import com.employee.api.domain.Employee;
 import com.employee.api.error.DefaultError;
 import com.employee.api.error.EmployeeError;
 import com.employee.api.error.exception.EmployeeException;
 import com.employee.api.error.exception.GenericException;
+import com.employee.api.manager.S3Manager;
 import com.employee.api.service.department.DepartmentService;
 import com.employee.api.service.employee.EmployeeList;
 import com.employee.api.service.employee.EmployeeQueryValues;
@@ -36,6 +41,9 @@ public class EmployeeApplication extends AbstractApplication {
 
 	@Autowired
 	private DepartmentService departmentService;
+
+	@Autowired
+	private S3Manager s3Manager;
 
 	public EmployeeListDTO getById(Long id) throws GenericException {
 
@@ -85,7 +93,7 @@ public class EmployeeApplication extends AbstractApplication {
 			throw new EmployeeException(EmployeeError.EMPLOYEE_NOT_FOUND, "Employee is not present");
 		}
 
-		EmployeeListDTO employeeListDTO = populate(departmentService,employeeService, employees.get());
+		EmployeeListDTO employeeListDTO = populate(departmentService, employeeService, employees.get());
 		return employeeListDTO;
 	}
 
@@ -113,7 +121,7 @@ public class EmployeeApplication extends AbstractApplication {
 			throw new EmployeeException(EmployeeError.EMPLOYEE_NOT_FOUND, "Employee is not present");
 		}
 
-		EmployeeListDTO employeeListDTO = populate(departmentService,employeeService, employees.get());
+		EmployeeListDTO employeeListDTO = populate(departmentService, employeeService, employees.get());
 		return employeeListDTO;
 	}
 
@@ -141,6 +149,10 @@ public class EmployeeApplication extends AbstractApplication {
 	}
 
 	public EmployeeListDTO save(EmployeeRequest request) throws GenericException {
+		return save(request, null);
+	}
+
+	public EmployeeListDTO save(EmployeeRequest request, MultipartFile resume) throws GenericException {
 
 		if (Assert.isNull(request)) {
 			log.debug(String.format("Request %s sent by client is null", request));
@@ -162,8 +174,48 @@ public class EmployeeApplication extends AbstractApplication {
 			throw new EmployeeException(EmployeeError.EMPLOYEE_NOT_FOUND, "Employee is not present");
 		}
 
-		EmployeeListDTO employeeListDTO = populate(departmentService,employeeService, employees.get());
+		uploadResume(resume, employee.getId());
+
+		EmployeeListDTO employeeListDTO = populate(departmentService, employeeService, employees.get());
 		return employeeListDTO;
+	}
+
+	public ResumeResponse uploadResume(MultipartFile resume, Long id) throws EmployeeException {
+		if (Assert.isNull(resume) || Assert.isNull(id)) {
+			log.debug(String.format("Request %s sent by client is null", id));
+			throw new EmployeeException(DefaultError.CLIENT_SIDE_ERROR_BAD_REQUEST,
+					String.format("Request %s sent by client is null", id));
+		}
+
+		try {
+			s3Manager.uploadFile(id.toString(), resume.getInputStream(), s3Manager.createMetaData(resume));
+		} catch (IOException e) {
+			throw new EmployeeException(DefaultError.INTERNAL_SERVER_ERROR, e.getMessage());
+		}
+
+		ResumeResponse resumeResponse = new ResumeResponse();
+
+		resumeResponse.setSuccess(Boolean.TRUE);
+		resumeResponse.setCurrentDate(LocalDateTime.now());
+		resumeResponse.setStatus(true);
+
+		return resumeResponse;
+
+	}
+
+	public byte[] downloadResume(Long id) throws EmployeeException {
+		if (Assert.isNull(id)) {
+			log.debug(String.format("Request %s sent by client is null", id));
+			throw new EmployeeException(DefaultError.CLIENT_SIDE_ERROR_BAD_REQUEST,
+					String.format("Request %s sent by client is null", id));
+		}
+
+		try {
+			return s3Manager.downloadFile(id.toString());
+		} catch (IOException e) {
+			throw new EmployeeException(DefaultError.INTERNAL_SERVER_ERROR, e.getMessage());
+		}
+
 	}
 
 	public DeleteResponse delete(Long id) throws EmployeeException {
@@ -177,6 +229,9 @@ public class EmployeeApplication extends AbstractApplication {
 
 		try {
 			boolean isDeleted = employeeService.delete(id);
+
+			deleteResponse.setSuccess(Boolean.TRUE);
+			deleteResponse.setCurrentDate(LocalDateTime.now());
 			deleteResponse.setDeleted(isDeleted);
 
 		} catch (GenericException e) {

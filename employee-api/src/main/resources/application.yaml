@@ -17,3 +17,7 @@ mongodb:
    databaseName: employee-api
    timeout: 15
    ssl: false
+s3:
+   accessKey:
+   secretKey:
+   bucketName:
