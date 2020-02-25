@@ -21,3 +21,12 @@ s3:
    accessKey:
    secretKey:
    bucketName:
+security:
+  passwordEncoderSecret: mysecret
+  passwordEncoderIteration: 33
+  passwordEncoderKeylength: 256
+  jjwtSecret: ThisIsSecretForJWTHS512SignatureAlgorithmThatMUSTHave512bitsKeySize
+  jjwtExpiration: 28800
+  adminUsername: admin
+  adminPassword: admin
+  adminEncryptedPassword: dQNjUIMorJb8Ubj2+wVGYp6eAeYkdekqAcnYp+aRq5w=
